@@ -1,0 +1,10 @@
+create extension if not exists pgcrypto;
+create table if not exists public.accounts (id uuid primary key default gen_random_uuid(), user_id uuid not null references auth.users(id) on delete cascade, name text not null, type text not null default 'bank', opening_balance numeric(14,2) not null default 0, created_at timestamptz not null default now());
+create table if not exists public.credit_cards (id uuid primary key default gen_random_uuid(), user_id uuid not null references auth.users(id) on delete cascade, name text not null, credit_limit numeric(14,2) not null default 0, opening_outstanding numeric(14,2) not null default 0, due_date date, created_at timestamptz not null default now());
+create table if not exists public.transactions (id uuid primary key default gen_random_uuid(), user_id uuid not null references auth.users(id) on delete cascade, type text not null check(type in ('income','expense','transfer','card_payment')), date date not null default current_date, description text not null, amount numeric(14,2) not null check(amount>0), category text, note text, account_id uuid references public.accounts(id) on delete set null, to_account_id uuid references public.accounts(id) on delete set null, to_card_id uuid references public.credit_cards(id) on delete set null, created_at timestamptz not null default now());
+alter table public.accounts enable row level security;
+alter table public.credit_cards enable row level security;
+alter table public.transactions enable row level security;
+create policy "own accounts" on public.accounts for all using(auth.uid()=user_id) with check(auth.uid()=user_id);
+create policy "own cards" on public.credit_cards for all using(auth.uid()=user_id) with check(auth.uid()=user_id);
+create policy "own transactions" on public.transactions for all using(auth.uid()=user_id) with check(auth.uid()=user_id);
